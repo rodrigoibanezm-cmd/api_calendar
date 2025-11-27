@@ -3,8 +3,15 @@ export default function handler(req, res) {
     return res.status(405).json({ status: "error", message: "Method not allowed" });
   }
 
+  const { action, data } = req.body || {};
+
+  if (!action) {
+    return res.status(400).json({ status: "error", message: "Missing action" });
+  }
+
   return res.status(200).json({
-    status: "ok-desde-vercel",
-    body: req.body || null
+    status: "proxy-ok",
+    actionReceived: action,
+    dataReceived: data
   });
 }
