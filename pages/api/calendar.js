@@ -4,8 +4,14 @@
 const SCRIPT_URL =
   "https://script.google.com/macros/s/AKfycbwfmuEnF_Qug9-QE_sr9_JKK_uV6uW8kPRT8YMyonFxxy90w27GfzNrzc17ieFFf4kxgw/exec";
 
+// Deshabilitar el body parser por defecto de Next.js
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
 export default async function handler(req, res) {
-  // Solo aceptar POST
   if (req.method !== "POST") {
     return res
       .status(405)
@@ -13,33 +19,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = req.body || {};
+    // Leer el cuerpo completo manualmente (como texto)
+    const buffers = [];
+    for await (const chunk of req) {
+      buffers.push(chunk);
+    }
+    const rawBody = Buffer.concat(buffers).toString();
 
-    // Validar que lleguen los campos necesarios
-    if (!body.start || !body.end || !body.title) {
+    // Intentamos parsear para validar JSON
+    let jsonData;
+    try {
+      jsonData = JSON.parse(rawBody);
+    } catch {
       return res
         .status(400)
-        .json({ status: "error", message: "Missing required fields" });
+        .json({ status: "error", message: "Cuerpo no es JSON válido", raw: rawBody });
     }
 
-    // Enviar los datos al Apps Script
+    // Reenviar el mismo cuerpo crudo al Apps Script
     const response = await fetch(SCRIPT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: rawBody,
     });
 
-    // Leer respuesta como texto (Apps Script puede devolver texto o JSON)
     const text = await response.text();
 
     let data;
     try {
-      data = JSON.parse(text); // si es JSON válido
+      data = JSON.parse(text);
     } catch {
-      data = { raw: text }; // si es texto plano
+      data = { raw: text };
     }
 
-    // Devolver respuesta al cliente
     return res.status(200).json(data);
   } catch (error) {
     console.error("Proxy error:", error);
@@ -48,4 +60,3 @@ export default async function handler(req, res) {
       .json({ status: "error", message: error.message });
   }
 }
-
