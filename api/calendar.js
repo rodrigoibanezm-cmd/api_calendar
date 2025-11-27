@@ -15,3 +15,4 @@ export default function handler(req, res) {
     dataReceived: data
   });
 }
+
